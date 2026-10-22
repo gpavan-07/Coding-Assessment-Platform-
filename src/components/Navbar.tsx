@@ -15,6 +15,7 @@ import {
   Layers,
   Users,
   FileText,
+  FileCode2,
   Award,
   Info,
 } from "lucide-react";
@@ -45,6 +46,7 @@ function NavbarInner() {
   // Admin active tab checks
   const isAdminDashboardActive = pathname === "/admin" && (currentTab === "dashboard" || currentTab === "live");
   const isAdminUsersActive = pathname === "/admin" && currentTab === "users";
+  const isAdminQuestionsActive = pathname === "/admin" && currentTab === "questions";
   const isAdminExamsActive = pathname === "/admin" && (currentTab === "exams" || currentTab === "create");
   const isAdminReportsActive = pathname === "/admin" && currentTab === "reports";
   const isAdminCertsActive = pathname === "/admin" && currentTab === "certificates";
@@ -170,6 +172,22 @@ function NavbarInner() {
                         }`}
                       />
                       <span>Users</span>
+                    </Link>
+
+                    <Link
+                      href="/admin?tab=questions"
+                      className={`flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-semibold rounded-lg transition-all ${
+                        isAdminQuestionsActive
+                          ? "text-indigo-700 bg-indigo-50 border border-indigo-200 shadow-xs"
+                          : "text-slate-600 hover:text-slate-900 hover:bg-slate-100"
+                      }`}
+                    >
+                      <FileCode2
+                        className={`h-3.5 w-3.5 ${
+                          isAdminQuestionsActive ? "text-indigo-600" : "text-slate-500"
+                        }`}
+                      />
+                      <span>Questions</span>
                     </Link>
 
                     <Link

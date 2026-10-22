@@ -5,7 +5,9 @@ import {
   MOCK_EXAMS,
   INITIAL_SUBMISSIONS,
   INITIAL_CERTIFICATES,
+  INITIAL_PROBLEM_BANK,
   ExamData,
+  ProblemData,
   SubmissionReportData,
   CertificateData,
 } from "./mock-data";
@@ -64,6 +66,7 @@ interface AssessmentContextType {
     createdAt?: string;
   }[];
   exams: ExamData[];
+  problemBank: ProblemData[];
   submissions: SubmissionReportData[];
   certificates: CertificateData[];
   liveWritersCount: number;
@@ -71,6 +74,9 @@ interface AssessmentContextType {
   liveWritingStudents: LiveStudentSession[];
   liveActivityEvents: LiveActivityEvent[];
   createExam: (newExam: Omit<ExamData, "id">) => ExamData;
+  addProblem: (problem: Omit<ProblemData, "id"> | ProblemData) => ProblemData;
+  updateProblem: (id: string, updated: Partial<ProblemData>) => void;
+  deleteProblem: (id: string) => void;
   loginUser: (identifier: string, password: string) => { success: boolean; role?: "student" | "company_admin"; error?: string };
   loginStudent: (identifier: string, password: string) => { success: boolean; error?: string };
   registerStudent: (input: RegisterInput) => { success: boolean; error?: string };
@@ -138,6 +144,7 @@ export function AssessmentProvider({ children }: { children: React.ReactNode }) 
   const [currentUser, setCurrentUser] = useState<UserSession | null>(null);
   const [registeredStudents, setRegisteredStudents] = useState(DEFAULT_REGISTERED_STUDENTS);
   const [exams, setExams] = useState<ExamData[]>(MOCK_EXAMS);
+  const [problemBank, setProblemBank] = useState<ProblemData[]>(INITIAL_PROBLEM_BANK);
   const [submissions, setSubmissions] = useState<SubmissionReportData[]>(INITIAL_SUBMISSIONS);
   const [certificates, setCertificates] = useState<CertificateData[]>(INITIAL_CERTIFICATES);
   const [liveWritingStudents, setLiveWritingStudents] = useState<LiveStudentSession[]>([]);
@@ -169,6 +176,22 @@ export function AssessmentProvider({ children }: { children: React.ReactNode }) 
 
       const storedExams = localStorage.getItem("certicode_exams");
       if (storedExams) setExams(JSON.parse(storedExams));
+
+      const storedBank = localStorage.getItem("certicode_problem_bank");
+      if (storedBank) {
+        try {
+          const parsedBank = JSON.parse(storedBank);
+          if (Array.isArray(parsedBank) && parsedBank.length > 0) {
+            setProblemBank(parsedBank);
+          } else {
+            setProblemBank(INITIAL_PROBLEM_BANK);
+          }
+        } catch {
+          setProblemBank(INITIAL_PROBLEM_BANK);
+        }
+      } else {
+        setProblemBank(INITIAL_PROBLEM_BANK);
+      }
 
       const storedSubs = localStorage.getItem("certicode_submissions");
       if (storedSubs) {
@@ -223,13 +246,14 @@ export function AssessmentProvider({ children }: { children: React.ReactNode }) 
       }
       localStorage.setItem("certicode_students", JSON.stringify(registeredStudents));
       localStorage.setItem("certicode_exams", JSON.stringify(exams));
+      localStorage.setItem("certicode_problem_bank", JSON.stringify(problemBank));
       localStorage.setItem("certicode_submissions", JSON.stringify(submissions));
       localStorage.setItem("certicode_certificates", JSON.stringify(certificates));
       localStorage.setItem("certicode_live_submissions_count", liveQuestionsSubmitted.toString());
     } catch (e) {
       console.warn("Could not sync to localStorage:", e);
     }
-  }, [currentUser, registeredStudents, exams, submissions, certificates, liveQuestionsSubmitted, isLoaded]);
+  }, [currentUser, registeredStudents, exams, problemBank, submissions, certificates, liveQuestionsSubmitted, isLoaded]);
 
   // Real-time automatic ticker: only updates if active writing student sessions exist
   useEffect(() => {
@@ -359,6 +383,43 @@ export function AssessmentProvider({ children }: { children: React.ReactNode }) 
   // Delete exam by Admin
   const deleteExam = (id: string) => {
     setExams((prev) => prev.filter((e) => e.id !== id));
+  };
+
+  // Add problem to Question Bank
+  const addProblem = (problemData: Omit<ProblemData, "id"> | ProblemData) => {
+    const id = "id" in problemData && problemData.id ? problemData.id : `prob-custom-${Date.now().toString(36)}`;
+    const newProblem: ProblemData = {
+      ...problemData,
+      id,
+    };
+    setProblemBank((prev) => [newProblem, ...prev]);
+    return newProblem;
+  };
+
+  // Update problem in Question Bank & sync with Examinations
+  const updateProblem = (id: string, updated: Partial<ProblemData>) => {
+    setProblemBank((prev) =>
+      prev.map((p) => (p.id === id ? { ...p, ...updated } : p))
+    );
+    setExams((prevExams) =>
+      prevExams.map((exam) => ({
+        ...exam,
+        problems: (exam.problems || []).map((p) =>
+          p.id === id ? { ...p, ...updated } : p
+        ),
+      }))
+    );
+  };
+
+  // Delete problem from Question Bank & sync with Examinations
+  const deleteProblem = (id: string) => {
+    setProblemBank((prev) => prev.filter((p) => p.id !== id));
+    setExams((prevExams) =>
+      prevExams.map((exam) => ({
+        ...exam,
+        problems: (exam.problems || []).filter((p) => p.id !== id),
+      }))
+    );
   };
 
   // Student Dual Login: Email OR Phone
@@ -759,6 +820,7 @@ export function AssessmentProvider({ children }: { children: React.ReactNode }) 
         currentUser,
         registeredStudents,
         exams,
+        problemBank,
         submissions,
         certificates,
         liveWritersCount,
@@ -767,6 +829,9 @@ export function AssessmentProvider({ children }: { children: React.ReactNode }) 
         liveActivityEvents,
         createExam,
         deleteExam,
+        addProblem,
+        updateProblem,
+        deleteProblem,
         loginUser,
         loginStudent,
         registerStudent,

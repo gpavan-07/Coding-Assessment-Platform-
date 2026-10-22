@@ -941,3 +941,121 @@ export const INITIAL_CERTIFICATES: CertificateData[] = [
   },
 ];
 
+export const INITIAL_PROBLEM_BANK: ProblemData[] = [
+  {
+    id: "prob-fibonacci-bigint",
+    title: "Nth Fibonacci Number Using BigIntegers",
+    difficulty: "Medium",
+    points: 100,
+    description: `Given an integer \`N\`, calculate and return the **N-th Fibonacci number**.
+
+Since Fibonacci numbers grow rapidly, standard 32-bit or 64-bit integers will quickly overflow for moderately large values of \`N\`. Your solution must support arbitrarily large integers (e.g. using \`BigInteger\` in Java, arbitrary precision integers in Python, or \`BigInt\` in JavaScript).
+
+### Sequence Definition:
+- \`F(0) = 0\`
+- \`F(1) = 1\`
+- \`F(N) = F(N-1) + F(N-2)\` for \`N >= 2\`
+
+### Constraints:
+- \`1 <= N <= 1000\`
+- Expected Time Complexity: \`O(N)\`
+- Expected Auxiliary Space: \`O(1)\` or \`O(N)\``,
+    constraints: [
+      "1 <= N <= 1000",
+      "Time Limit: 2.0s",
+      "Memory Limit: 256MB",
+    ],
+    examples: [
+      {
+        input: "1",
+        output: "1",
+        explanation: "F(1) = 1.",
+      },
+      {
+        input: "5",
+        output: "5",
+        explanation: "The Fibonacci sequence starts 0, 1, 1, 2, 3, 5. The 5th number is 5.",
+      },
+      {
+        input: "10",
+        output: "55",
+        explanation: "The 10th Fibonacci number is 55.",
+      },
+    ],
+    starterCode: {
+      java: `import java.math.BigInteger;
+
+class Solution {
+    // Return N-th Fibonacci number as a BigInteger string
+    public static String nthFibonacci(int n) {
+        if (n <= 0) return "0";
+        if (n == 1) return "1";
+        
+        BigInteger a = BigInteger.ZERO;
+        BigInteger b = BigInteger.ONE;
+        
+        for (int i = 2; i <= n; i++) {
+            BigInteger c = a.add(b);
+            a = b;
+            b = c;
+        }
+        return b.toString();
+    }
+}`,
+      python: `def nth_fibonacci(n: int) -> str:
+    """
+    Returns the N-th Fibonacci number as a string.
+    """
+    if n <= 0:
+        return "0"
+    if n == 1:
+        return "1"
+        
+    a, b = 0, 1
+    for _ in range(2, n + 1):
+        a, b = b, a + b
+    return str(b)
+`,
+      javascript: `/**
+ * @param {number} n
+ * @return {string}
+ */
+function nthFibonacci(n) {
+  if (n <= 0) return "0";
+  if (n === 1) return "1";
+
+  let a = 0n;
+  let b = 1n;
+  for (let i = 2; i <= n; i++) {
+    const c = a + b;
+    a = b;
+    b = c;
+  }
+  return b.toString();
+}
+`,
+      cpp: `#include <iostream>
+#include <vector>
+#include <string>
+
+// BigInteger helper or addition string function
+std::string nthFibonacci(int n) {
+    if (n <= 0) return "0";
+    if (n == 1) return "1";
+    // Large integer addition implementation
+    return "1";
+}
+`,
+    },
+    testCases: [
+      { id: 1, input: "1", expectedOutput: "1", isHidden: false },
+      { id: 2, input: "5", expectedOutput: "5", isHidden: false },
+      { id: 3, input: "10", expectedOutput: "55", isHidden: true },
+      { id: 4, input: "20", expectedOutput: "6765", isHidden: true },
+      { id: 5, input: "50", expectedOutput: "12586269025", isHidden: true },
+      { id: 6, input: "100", expectedOutput: "354224848179261915075", isHidden: true },
+    ],
+  },
+  ...MOCK_EXAMS.flatMap((exam) => exam.problems || []),
+];
+

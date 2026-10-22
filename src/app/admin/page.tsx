@@ -4,12 +4,14 @@ import React, { useState, useEffect, Suspense } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useAssessment } from "@/lib/assessment-store";
-import { SubmissionReportData, CertificateData, ExamData } from "@/lib/mock-data";
+import { SubmissionReportData, CertificateData, ExamData, ProblemData } from "@/lib/mock-data";
+import ProblemEditorModal from "@/components/ProblemEditorModal";
 import {
   ShieldCheck,
   Award,
   Users,
   FileText,
+  FileCode2,
   Printer,
   Eye,
   CheckCircle2,
@@ -35,9 +37,10 @@ import {
   ArrowLeft,
   Code2,
   XCircle,
+  Edit3,
 } from "lucide-react";
 
-type TabType = "dashboard" | "users" | "exams" | "reports" | "certificates";
+type TabType = "dashboard" | "users" | "questions" | "exams" | "reports" | "certificates";
 
 function getFormattedSerialNo(cert?: CertificateData): string {
   if (!cert) return "14471";
@@ -61,6 +64,7 @@ function AdminPortalContent() {
     currentUser,
     registeredStudents,
     exams,
+    problemBank,
     submissions,
     certificates,
     liveWritersCount,
@@ -69,6 +73,9 @@ function AdminPortalContent() {
     liveActivityEvents,
     createExam,
     deleteExam,
+    addProblem,
+    updateProblem,
+    deleteProblem,
     loginAdmin,
     getCertificateBySubmissionId,
     changeUserPassword,
@@ -92,6 +99,8 @@ function AdminPortalContent() {
       setActiveTab("dashboard");
     } else if (tabParam === "users") {
       setActiveTab("users");
+    } else if (tabParam === "questions") {
+      setActiveTab("questions");
     } else if (tabParam === "exams" || tabParam === "create") {
       setActiveTab("exams");
     } else if (tabParam === "reports") {
@@ -100,6 +109,12 @@ function AdminPortalContent() {
       setActiveTab("certificates");
     }
   }, [tabParam]);
+
+  // Problem Bank states
+  const [showProblemModal, setShowProblemModal] = useState(false);
+  const [editingProblem, setEditingProblem] = useState<ProblemData | null>(null);
+  const [problemSearchTerm, setProblemSearchTerm] = useState("");
+  const [problemDifficultyFilter, setProblemDifficultyFilter] = useState("ALL");
 
   // Search & filter
   const [searchTerm, setSearchTerm] = useState("");
@@ -413,6 +428,17 @@ function AdminPortalContent() {
     );
   });
 
+  const filteredProblems = (problemBank || []).filter((prob) => {
+    const q = problemSearchTerm.toLowerCase();
+    const matchesSearch =
+      prob.title.toLowerCase().includes(q) ||
+      prob.description.toLowerCase().includes(q);
+    const matchesDiff =
+      problemDifficultyFilter === "ALL" ||
+      prob.difficulty === problemDifficultyFilter;
+    return matchesSearch && matchesDiff;
+  });
+
   const handlePrintCertificate = () => {
     const originalTitle = document.title;
     const certSerial = getFormattedSerialNo(viewCertificate?.certificate);
@@ -555,7 +581,7 @@ function AdminPortalContent() {
         {activeTab === "dashboard" && (
           <div className="space-y-8">
             {/* Metric KPI Cards Grid */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
               {/* Total Users */}
               <div
                 onClick={() => setActiveTab("users")}
@@ -572,6 +598,26 @@ function AdminPortalContent() {
                   <span>Candidate profiles</span>
                   <span className="text-indigo-600 font-medium group-hover:underline flex items-center gap-0.5">
                     Manage <ArrowRight className="h-3 w-3" />
+                  </span>
+                </div>
+              </div>
+
+              {/* Question Bank */}
+              <div
+                onClick={() => setActiveTab("questions")}
+                className="rounded-2xl border border-slate-200 bg-white p-5 cursor-pointer hover:border-indigo-300 hover:shadow-md transition-all group shadow-xs"
+              >
+                <div className="flex items-center justify-between text-slate-500 group-hover:text-violet-600 transition-colors">
+                  <span className="text-[10px] font-mono uppercase">Question Bank</span>
+                  <FileCode2 className="h-4 w-4" />
+                </div>
+                <div className="text-3xl font-extrabold text-slate-900 mt-2 group-hover:text-violet-600 transition-colors">
+                  {problemBank.length}
+                </div>
+                <div className="text-[11px] text-slate-500 mt-1 flex items-center justify-between">
+                  <span>Dynamic problems</span>
+                  <span className="text-violet-600 font-medium group-hover:underline flex items-center gap-0.5">
+                    Manage Bank <ArrowRight className="h-3 w-3" />
                   </span>
                 </div>
               </div>
@@ -956,6 +1002,181 @@ function AdminPortalContent() {
                                 <KeyRound className="h-3.5 w-3.5 text-indigo-600" />
                                 <span>Change Password</span>
                               </button>
+                            </td>
+                          </tr>
+                        );
+                      })
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* =========================================================================
+            MENU: QUESTION BANK & PROBLEMS MANAGEMENT
+           ========================================================================= */}
+        {activeTab === "questions" && (
+          <div className="space-y-6">
+            {/* Header & Add Button */}
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-b border-slate-200 pb-4">
+              <div>
+                <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
+                  <FileCode2 className="h-5 w-5 text-indigo-600" />
+                  <span>Question Bank & Problem Management</span>
+                </h2>
+                <p className="text-xs text-slate-600 mt-0.5">
+                  Create, edit, verify, and manage coding questions and test cases used across examinations.
+                </p>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setEditingProblem(null);
+                  setShowProblemModal(true);
+                }}
+                className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-xs font-bold text-white shadow-xs transition-all cursor-pointer"
+              >
+                <PlusCircle className="h-4 w-4" />
+                <span>+ Add Question</span>
+              </button>
+            </div>
+
+            {/* Search and Difficulty Filter Controls */}
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-4 bg-white p-4 rounded-2xl border border-slate-200 shadow-xs">
+              <div className="relative w-full sm:w-80">
+                <Search className="h-4 w-4 text-slate-400 absolute left-3.5 top-3" />
+                <input
+                  type="text"
+                  value={problemSearchTerm}
+                  onChange={(e) => setProblemSearchTerm(e.target.value)}
+                  placeholder="Search questions by title or description..."
+                  className="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:border-indigo-600 focus:bg-white"
+                />
+              </div>
+
+              <div className="flex items-center gap-2 w-full sm:w-auto">
+                <span className="text-xs font-semibold text-slate-500">Difficulty:</span>
+                <div className="inline-flex rounded-xl bg-slate-100 p-1 border border-slate-200 text-xs font-medium">
+                  {["ALL", "Easy", "Medium", "Hard"].map((diff) => (
+                    <button
+                      key={diff}
+                      type="button"
+                      onClick={() => setProblemDifficultyFilter(diff)}
+                      className={`px-3 py-1 rounded-lg transition-all cursor-pointer ${
+                        problemDifficultyFilter === diff
+                          ? "bg-white text-indigo-700 font-bold shadow-xs"
+                          : "text-slate-600 hover:text-slate-900"
+                      }`}
+                    >
+                      {diff}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* Questions Table / List */}
+            <div className="rounded-2xl border border-slate-200 bg-white overflow-hidden shadow-xs">
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-xs text-slate-700">
+                  <thead className="bg-slate-50/80 text-[11px] font-mono uppercase tracking-wider text-slate-500 border-b border-slate-200">
+                    <tr>
+                      <th className="py-3 px-6">Problem Title</th>
+                      <th className="py-3 px-6">Difficulty</th>
+                      <th className="py-3 px-6">Points</th>
+                      <th className="py-3 px-6">Test Cases</th>
+                      <th className="py-3 px-6">Supported Languages</th>
+                      <th className="py-3 px-6 text-right">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {filteredProblems.length === 0 ? (
+                      <tr>
+                        <td colSpan={6} className="py-12 text-center text-slate-500">
+                          <FileCode2 className="h-8 w-8 mx-auto text-slate-300 mb-2" />
+                          <p className="font-semibold text-slate-700">No questions found</p>
+                          <p className="text-slate-500 text-[11px] mt-0.5">
+                            Try adjusting your search criteria or click "+ Add Question" to create one.
+                          </p>
+                        </td>
+                      </tr>
+                    ) : (
+                      filteredProblems.map((prob) => {
+                        const totalTests = prob.testCases?.length || 0;
+                        const hiddenTests = prob.testCases?.filter((t) => t.isHidden).length || 0;
+                        return (
+                          <tr key={prob.id} className="hover:bg-slate-50/70 transition-colors">
+                            <td className="py-4 px-6">
+                              <div className="font-bold text-slate-900 text-sm">{prob.title}</div>
+                              <div className="text-[11px] font-mono text-slate-500 mt-0.5 line-clamp-1 max-w-md">
+                                {prob.description?.replace(/[#*`]/g, "").slice(0, 95)}...
+                              </div>
+                            </td>
+                            <td className="py-4 px-6">
+                              <span
+                                className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-bold border ${
+                                  prob.difficulty === "Easy"
+                                    ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                                    : prob.difficulty === "Hard"
+                                    ? "bg-rose-50 text-rose-700 border-rose-200"
+                                    : "bg-amber-50 text-amber-800 border-amber-200"
+                                }`}
+                              >
+                                {prob.difficulty}
+                              </span>
+                            </td>
+                            <td className="py-4 px-6 font-mono font-semibold text-slate-800">
+                              {prob.points || 100} Pts
+                            </td>
+                            <td className="py-4 px-6">
+                              <div className="font-semibold text-slate-900">
+                                {totalTests} {totalTests === 1 ? "Case" : "Cases"}
+                              </div>
+                              <div className="text-[10px] text-slate-500 font-mono">
+                                {hiddenTests} Hidden • {totalTests - hiddenTests} Visible
+                              </div>
+                            </td>
+                            <td className="py-4 px-6">
+                              <div className="flex items-center gap-1.5 flex-wrap">
+                                {["Java", "Python", "JS", "C++"].map((l) => (
+                                  <span
+                                    key={l}
+                                    className="px-2 py-0.5 rounded bg-slate-100 text-slate-600 font-mono text-[10px] border border-slate-200"
+                                  >
+                                    {l}
+                                  </span>
+                                ))}
+                              </div>
+                            </td>
+                            <td className="py-4 px-6 text-right">
+                              <div className="flex items-center justify-end gap-2">
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setEditingProblem(prob);
+                                    setShowProblemModal(true);
+                                  }}
+                                  className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-semibold text-xs border border-indigo-200 transition-colors cursor-pointer"
+                                >
+                                  <Edit3 className="h-3.5 w-3.5" />
+                                  <span>Edit</span>
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    if (confirm(`Are you sure you want to delete "${prob.title}" from the question bank?`)) {
+                                      deleteProblem(prob.id);
+                                    }
+                                  }}
+                                  className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors cursor-pointer"
+                                  title="Delete problem"
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </button>
+                              </div>
                             </td>
                           </tr>
                         );
@@ -2178,6 +2399,23 @@ function AdminPortalContent() {
           </div>
         </div>
       )}
+
+      {/* Problem Editor Modal */}
+      <ProblemEditorModal
+        isOpen={showProblemModal}
+        onClose={() => {
+          setShowProblemModal(false);
+          setEditingProblem(null);
+        }}
+        problem={editingProblem}
+        onSave={(savedProb) => {
+          if (editingProblem) {
+            updateProblem(savedProb.id, savedProb);
+          } else {
+            addProblem(savedProb);
+          }
+        }}
+      />
     </div>
   );
 }
